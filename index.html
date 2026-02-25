@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ancestral Threads - Diaspora Globe</title>
+    <script src="data.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&family=Inter:wght@300;400;900&display=swap");
+
+      /* Base styles to prevent scrolling and set a dark, atmospheric foundation */
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #0c0805;
+        font-family: "Inter", sans-serif;
+        color: white;
+        cursor: grab; /* Indicates the globe can be grabbed and rotated */
+      }
+      body:active {
+        cursor: grabbing;
+      } /* Visual feedback during the drag interaction */
+      canvas {
+        display: block;
+      }
+
+      /* radial-gradient overlay to create a vignette effect and atmospheric lighting depth */
+      .gradient-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background:
+          radial-gradient(
+            circle at 20% 30%,
+            rgba(255, 111, 0, 0.15) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 80% 70%,
+            rgba(0, 163, 255, 0.1) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at center,
+            transparent 30%,
+            rgba(12, 8, 5, 0.95) 100%
+          );
+        pointer-events: none; /* Allows mouse events to pass through to the 3D canvas */
+      }
+
+      /* The Storyboard panel: Initially hidden off-screen to the right (100%) */
+      #storyboard {
+        transform: translateX(100%);
+        transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      /* Active class to slide the panel into view */
+      #storyboard.active {
+        transform: translateX(0);
+      }
+
+      /* Glassmorphism effect: Combines high blur and semi-transparency for a modern UI look */
+      .glass {
+        background: rgba(20, 15, 10, 0.92);
+        backdrop-filter: blur(20px);
+        border-left: 2px solid rgba(255, 165, 0, 0.15);
+        box-shadow: -20px 0 50px rgba(0, 0, 0, 0.8);
+      }
+
+      /* Decorative badges for the five pillars (Dance, Food, etc.) */
+      .pillar-badge {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 900;
+        box-shadow: 0 0 20px currentColor; /* Glow matches the specific pillar color */
+      }
+
+      /* Custom scrollbar styling for the storyboard content */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 165, 0, 0.3);
+        border-radius: 10px;
+      }
+
+      /* Subtle brightness pulse to make the main title feel 'alive' */
+      @keyframes pulse-text {
+        0%,
+        100% {
+          opacity: 1;
+          filter: brightness(1);
+        }
+        50% {
+          opacity: 0.8;
+          filter: brightness(1.2);
+        }
+      }
+      .pulse-header {
+        animation: pulse-text 6s infinite ease-in-out;
+      }
+
+      /* Gradient text effect for the main title */
+      .hero-title {
+        font-family: "Space Grotesk", sans-serif;
+        background: linear-gradient(135deg, #fff 0%, #ff9d00 50%, #ff4d00 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="gradient-overlay"></div>
+
+    <!-- UI Overlay: Main Header Section -->
+    <div class="absolute top-10 left-10 z-10 pointer-events-none">
+      <h1
+        class="text-6xl font-black tracking-tighter uppercase mb-4 hero-title pulse-header"
+      >
+        Ancestral Threads
+      </h1>
+      <div class="flex items-center gap-4 mb-4">
+        <div class="h-px w-20 bg-orange-500/50"></div>
+        <span
+          class="text-orange-400 font-bold uppercase tracking-[0.3em] text-[10px]"
+          >A living map of the Diaspora</span
+        >
+      </div>
+      <p
+        class="text-gray-300 max-w-lg text-lg leading-relaxed font-light opacity-90"
+      >
+        Witness the unbreakable bonds of
+        <span class="text-orange-400 font-semibold">culture</span>,
+        <span class="text-blue-400 font-semibold">rhythm</span>, and
+        <span class="text-green-400 font-semibold">spirit</span>
+        that bridge continents across generations.
+      </p>
+    </div>
+
+    <!-- Controls Info: Bottom navigation guide for users -->
+    <div
+      class="absolute bottom-10 left-10 z-10 flex gap-8 items-center bg-black/40 backdrop-blur-md p-4 rounded-xl border border-white/5"
+    >
+      <div class="flex flex-col">
+        <span
+          class="text-[10px] text-orange-400 font-black uppercase tracking-[0.2em] mb-1"
+          >Explore</span
+        >
+        <span class="text-[10px] text-gray-400 uppercase tracking-widest"
+          >Grab & Spin Globe</span
+        >
+      </div>
+      <div class="w-px h-8 bg-white/10"></div>
+      <div class="flex flex-col">
+        <span
+          class="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em] mb-1"
+          >Perspective</span
+        >
+        <span class="text-[10px] text-gray-400 uppercase tracking-widest"
+          >Scroll to Zoom</span
+        >
+      </div>
+      <div class="w-px h-8 bg-white/10"></div>
+      <div class="flex flex-col">
+        <span
+          class="text-[10px] text-green-400 font-black uppercase tracking-[0.2em] mb-1"
+          >Discover</span
+        >
+        <span class="text-[10px] text-gray-400 uppercase tracking-widest"
+          >Click Glowing Arcs</span
+        >
+      </div>
+    </div>
+
+    <!-- Storyboard Panel: Injected with dynamic content when a thread is clicked -->
+    <div
+      id="storyboard"
+      class="fixed top-0 right-0 h-full w-full md:w-1/3 glass z-20 flex flex-col p-12 overflow-hidden"
+    >
+      <button
+        id="close-btn"
+        class="absolute top-10 right-10 text-orange-500/50 hover:text-orange-400 transition-all hover:rotate-90"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div
+        id="story-content"
+        class="h-full flex flex-col custom-scrollbar overflow-y-auto pr-6"
+      >
+        <!-- Dynamic Content Hook -->
+      </div>
+    </div>
+
+    <script>
+      // --- GLOBAL THREE.JS VARIABLES ---
+      let scene,
+        camera,
+        renderer,
+        globe,
+        atmosphere,
+        stars,
+        pins = [],
+        arcs = [];
+      const raycaster = new THREE.Raycaster();
+      // threshold makes it easier to 'click' or 'hover' on thin lines in 3D space
+      raycaster.params.Line.threshold = 0.1;
+      const mouse = new THREE.Vector2();
+
+      // Interaction Tracking State
+      let isSpinning = true;
+      let isDragging = false;
+      let hoveredArc = null;
+      let previousPointerPosition = { x: 0, y: 0 };
+      let rotationVelocity = { x: 0, y: 0.0008 }; // Default Y-spin for idle animation
+      const dampingFactor = 0.95; // How quickly the 'spin' slows down after release
+
+      // --- INITIALIZATION FUNCTION ---
+      async function init() {
+        // Scene: Container for all 3D objects
+        scene = new THREE.Scene();
+
+        // Camera: PerspectiveCamera(Field of View, Aspect Ratio, Near Plane, Far Plane)
+        camera = new THREE.PerspectiveCamera(
+          45,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000,
+        );
+        camera.position.z = 18; // Pull back to see the whole globe
+
+        // Renderer: Handles drawing the scene onto the screen
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio); // Sharpness on high-res screens
+        document.body.appendChild(renderer.domElement);
+
+        // 1. STARFIELD: Generating 6,000 random points in 3D space for the background
+        const starGeo = new THREE.BufferGeometry();
+        const starPoints = [];
+        for (let i = 0; i < 6000; i++) {
+          starPoints.push(
+            (Math.random() - 0.5) * 1000,
+            (Math.random() - 0.5) * 1000,
+            (Math.random() - 0.5) * 1000,
+          );
+        }
+        starGeo.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(starPoints, 3),
+        );
+        const starMat = new THREE.PointsMaterial({
+          color: 0xffa500,
+          size: 0.8,
+          transparent: true,
+          opacity: 0.4,
+          sizeAttenuation: true,
+        });
+        stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+        // 2. THE GLOBE: Main sphere representing Earth
+        const globeGeo = new THREE.SphereGeometry(5, 64, 64);
+        const globeMat = new THREE.MeshPhongMaterial({
+          color: 0x1a0f0a,
+          emissive: 0x2b1a10,
+          emissiveIntensity: 0.15,
+          shininess: 40,
+        });
+        globe = new THREE.Mesh(globeGeo, globeMat);
+        scene.add(globe);
+
+        // 3. ATMOSPHERE: A slightly larger sphere with a very faint outer glow
+        const atmoGeo = new THREE.SphereGeometry(5.4, 64, 64);
+        const atmoMat = new THREE.MeshBasicMaterial({
+          color: 0xffa500,
+          transparent: true,
+          opacity: 0.05,
+          side: THREE.BackSide,
+        });
+        atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
+        scene.add(atmosphere);
+
+        // 4. GRID: Geometric wireframe to give the globe technical depth
+        const gridGeo = new THREE.SphereGeometry(5.05, 40, 40);
+        const gridMat = new THREE.MeshBasicMaterial({
+          color: 0xffa500,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.05,
+        });
+        const grid = new THREE.Mesh(gridGeo, gridMat);
+        globe.add(grid);
+
+        // 5. LIGHTING: Basic setup to illuminate the materials
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4)); // Soft overall light
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0); // Sun-like light
+        mainLight.position.set(5, 5, 5);
+        scene.add(mainLight);
+
+        // 6. MAP ASSETS: Async call to fetch and draw geographic outlines
+        loadOutlines();
+
+        // 7. CONNECTIONS: Iterating through the database to draw the 'Threads'
+        diasporaData.features.forEach((feature) => {
+          createConnectionArc(feature);
+        });
+
+        // 8. EVENT LISTENERS: Handling browser resizing and user input
+        window.addEventListener("resize", onWindowResize);
+        document.addEventListener("mousedown", onPointerDown);
+        document.addEventListener("mousemove", onPointerMove);
+        document.addEventListener("mouseup", onPointerUp);
+        document.addEventListener("touchstart", onPointerDown, {
+          passive: false,
+        });
+        document.addEventListener("touchmove", onPointerMove, {
+          passive: false,
+        });
+        document.addEventListener("touchend", onPointerUp);
+        document
+          .getElementById("close-btn")
+          .addEventListener("click", closeStoryboard);
+
+        // Start the main loop
+        animate();
+      }
+
+      // --- BORDERS AND STATES LOGIC ---
+      async function loadOutlines() {
+        // Drawing Country Borders
+        try {
+          const response = await fetch(
+            "https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson",
+          );
+          const data = await response.json();
+          const worldMaterial = new THREE.LineBasicMaterial({
+            color: 0xff8c00,
+            transparent: true,
+            opacity: 0.4,
+          });
+
+          data.features.forEach((feature) => {
+            const geometry = feature.geometry;
+            if (geometry.type === "Polygon") {
+              drawPolygon(geometry.coordinates[0], worldMaterial);
+            } else if (geometry.type === "MultiPolygon") {
+              geometry.coordinates.forEach((poly) => {
+                drawPolygon(poly[0], worldMaterial);
+              });
+            }
+          });
+        } catch (error) {
+          console.error("Error loading world borders:", error);
+        }
+
+        // Drawing US State Outlines
+        try {
+          const response = await fetch(
+            "https://raw.githubusercontent.com/PublicaMundi/MappingJSON/master/States.json",
+          );
+          const data = await response.json();
+          const stateMaterial = new THREE.LineBasicMaterial({
+            color: 0xff8c00,
+            transparent: true,
+            opacity: 0.15,
+          });
+
+          data.features.forEach((feature) => {
+            const geometry = feature.geometry;
+            if (geometry.type === "Polygon") {
+              drawPolygon(geometry.coordinates[0], stateMaterial);
+            } else if (geometry.type === "MultiPolygon") {
+              geometry.coordinates.forEach((poly) => {
+                poly.forEach((ring) => {
+                  drawPolygon(ring, stateMaterial);
+                });
+              });
+            }
+          });
+        } catch (error) {
+          console.warn("Error loading US state borders:", error);
+        }
+      }
+
+      // Helper to convert GeoJSON coordinates into 3D line segments on the sphere
+      function drawPolygon(coordinates, material) {
+        const points = [];
+        coordinates.forEach((coord) => {
+          // radius 5.02 keeps lines slightly above the globe surface to prevent flickering (Z-fighting)
+          const vec = latLngToVector3(coord[1], coord[0], 5.02);
+          points.push(vec);
+        });
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(geo, material);
+        globe.add(line);
+      }
+
+      // --- MATHEMATICAL UTILITIES ---
+      // Converts Latitude/Longitude (2D) to 3D Cartesian coordinates (X, Y, Z)
+      function latLngToVector3(lat, lng, radius) {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lng + 180) * (Math.PI / 180);
+        return new THREE.Vector3(
+          -radius * Math.sin(phi) * Math.cos(theta),
+          radius * Math.cos(phi),
+          radius * Math.sin(phi) * Math.sin(theta),
+        );
+      }
+
+      // --- ANCESTRAL THREAD CREATION ---
+      function createConnectionArc(feature) {
+        const props = feature.properties;
+        // Radius 5.1 ensures the thread is always visible above the grid/borders (5.05)
+        const baseRadius = 5.1;
+        const start = latLngToVector3(
+          props.origin.coords[0],
+          props.origin.coords[1],
+          baseRadius,
+        );
+        const end = latLngToVector3(
+          props.destination.coords[0],
+          props.destination.coords[1],
+          baseRadius,
+        );
+
+        // Calculating the arc's midpoint and loft (height)
+        const mid = new THREE.Vector3()
+          .addVectors(start, end)
+          .multiplyScalar(0.5);
+        const distance = start.distanceTo(end);
+        const loftMultiplier = 0.45; // Determines how 'high' the curve reaches into space
+        mid.normalize().multiplyScalar(baseRadius + distance * loftMultiplier);
+
+        // Creating the Quadratic Bézier Curve through the points
+        const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+        const points = curve.getPoints(80); // Higher resolution for smoother curves
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+        // Primary colored line
+        const material = new THREE.LineBasicMaterial({
+          color: props.color,
+          transparent: true,
+          opacity: 0.95,
+        });
+        const line = new THREE.Line(geometry, material);
+        line.userData = feature; // Storing the data on the object for later interaction
+        globe.add(line);
+        arcs.push(line);
+
+        // Secondary 'glow' line slightly larger than the primary for a bloom effect
+        const glowMat = new THREE.LineBasicMaterial({
+          color: props.color,
+          transparent: true,
+          opacity: 0.15,
+        });
+        const glowLine = new THREE.Line(geometry, glowMat);
+        glowLine.scale.multiplyScalar(1.01);
+        line.glowReference = glowLine; // Reference for hover logic
+        globe.add(glowLine);
+
+        // Placing Pins at Start and End points
+        [start, end].forEach((pos) => {
+          const pinGroup = new THREE.Group();
+          // Central small sphere (The Pin)
+          const pin = new THREE.Mesh(
+            new THREE.SphereGeometry(0.06, 16, 16),
+            new THREE.MeshBasicMaterial({ color: props.color }),
+          );
+          // Animated outer pulse (The Ring)
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.075, 0.11, 32),
+            new THREE.MeshBasicMaterial({
+              color: props.color,
+              transparent: true,
+              opacity: 0.4,
+              side: THREE.DoubleSide,
+            }),
+          );
+          ring.lookAt(new THREE.Vector3(0, 0, 0)); // Always face the center to lay flat on the sphere
+          pinGroup.add(pin);
+          pinGroup.add(ring);
+          pinGroup.position.copy(pos);
+          globe.add(pinGroup);
+
+          // Infinite pulsing animation for the pins
+          gsap.to(ring.scale, {
+            x: 2.2,
+            y: 2.2,
+            duration: 2.5,
+            repeat: -1,
+            ease: "power2.out",
+            yoyo: true,
+          });
+          gsap.to(ring.material, {
+            opacity: 0,
+            duration: 2.5,
+            repeat: -1,
+            ease: "power2.out",
+            yoyo: true,
+          });
+        });
+      }
+
+      // --- USER INTERACTION LOGIC ---
+      function onPointerDown(event) {
+        if (event.touches) event.preventDefault();
+        const clientX = event.touches
+          ? event.touches[0].clientX
+          : event.clientX;
+        const clientY = event.touches
+          ? event.touches[0].clientY
+          : event.clientY;
+        isDragging = true;
+        previousPointerPosition = { x: clientX, y: clientY };
+        // Pause auto-rotation when the user takes control
+        if (isSpinning) {
+          rotationVelocity.x = 0;
+          rotationVelocity.y = 0;
+        }
+      }
+
+      function onPointerMove(event) {
+        const clientX = event.touches
+          ? event.touches[0].clientX
+          : event.clientX;
+        const clientY = event.touches
+          ? event.touches[0].clientY
+          : event.clientY;
+        // Map raw pixels to normalized 3D coordinates [-1, 1] for raycasting
+        mouse.x = (clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+        if (isDragging) {
+          // Manual globe rotation
+          const deltaX = clientX - previousPointerPosition.x;
+          const deltaY = clientY - previousPointerPosition.y;
+          globe.rotation.y += deltaX * 0.005;
+          globe.rotation.x += deltaY * 0.005;
+          // Clamp X rotation to prevent flipping over the poles
+          globe.rotation.x = Math.max(
+            -Math.PI / 2.5,
+            Math.min(Math.PI / 2.5, globe.rotation.x),
+          );
+
+          // Track velocity for inertia effect on release
+          rotationVelocity.x = deltaY * 0.005;
+          rotationVelocity.y = deltaX * 0.005;
+          previousPointerPosition = { x: clientX, y: clientY };
+        } else {
+          // Hover Detection
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects(arcs);
+          if (intersects.length > 0) {
+            const intersected = intersects[0].object;
+            if (hoveredArc !== intersected) {
+              resetHover();
+              hoveredArc = intersected;
+              highlightArc(hoveredArc);
+            }
+            document.body.style.cursor = "pointer";
+          } else {
+            if (hoveredArc) {
+              resetHover();
+              hoveredArc = null;
+            }
+            document.body.style.cursor = "grab";
+          }
+        }
+      }
+
+      // Visually brighten a thread when hovered
+      function highlightArc(arc) {
+        gsap.to(arc.material, { opacity: 1, duration: 0.2 });
+        if (arc.glowReference)
+          gsap.to(arc.glowReference.material, { opacity: 0.5, duration: 0.2 });
+      }
+
+      // Return a thread to its base transparency
+      function resetHover() {
+        if (hoveredArc) {
+          gsap.to(hoveredArc.material, { opacity: 0.95, duration: 0.2 });
+          if (hoveredArc.glowReference)
+            gsap.to(hoveredArc.glowReference.material, {
+              opacity: 0.2,
+              duration: 0.2,
+            });
+        }
+      }
+
+      function onPointerUp(event) {
+        if (!isDragging) return;
+        isDragging = false;
+        const mouseX = (previousPointerPosition.x / window.innerWidth) * 2 - 1;
+        const mouseY =
+          -(previousPointerPosition.y / window.innerHeight) * 2 + 1;
+        // Click Detection: If the mouse didn't move much, treat it as a selection click
+        if (
+          Math.abs(rotationVelocity.x) < 0.01 &&
+          Math.abs(rotationVelocity.y) < 0.01
+        ) {
+          raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+          const intersects = raycaster.intersectObjects(arcs);
+          if (intersects.length > 0)
+            openStoryboard(intersects[0].object.userData);
+        }
+      }
+
+      // --- CINEMATIC ZOOM AND STORYBOARD SYSTEM ---
+      function openStoryboard(data) {
+        const props = data.properties;
+        isSpinning = false; // Stop all globe rotation
+        const content = document.getElementById("story-content");
+
+        // Generate HTML structure for the selected story
+        content.innerHTML = `
+                <div class="mb-12 mt-12">
+                    <span class="pillar-badge" style="background: ${props.color}; color: #000;">${props.pillar}</span>
+                    <h2 class="text-5xl font-black mt-6 leading-tight hero-title">${props.title}</h2>
+                    <div class="flex items-center gap-4 mt-6 text-[10px] font-black uppercase tracking-[0.4em] text-orange-400">
+                        <span>${props.origin.region}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        <span>${props.destination.region}</span>
+                    </div>
+                </div>
+                <div class="space-y-20 pb-40">
+                    ${props.storyboard
+                      .map(
+                        (item, i) => `
+                        <div class="relative pl-10 border-l-2" style="border-color: ${props.color}66">
+                            <div class="absolute -left-[11px] top-0 w-5 h-5 rounded-full border-4 border-[#140f0a]" style="background: ${props.color}"></div>
+                            <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.4em] mb-6">Discovery 0${i + 1} / ${item.era}</h3>
+                            <p class="text-gray-200 text-xl leading-relaxed font-light">${item.content}</p>
+                            <div class="mt-10 w-full h-56 bg-gradient-to-br from-white/5 to-transparent rounded-3xl border border-white/5 flex items-center justify-center group cursor-pointer hover:border-white/20 transition-all overflow-hidden relative shadow-2xl">
+                                <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                                <span class="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500/50 group-hover:text-white transition-colors">Open Visual Archive</span>
+                            </div>
+                        </div>
+                    `,
+                      )
+                      .join("")}
+                </div>
+            `;
+
+        // Activate the slide-in panel
+        document.getElementById("storyboard").classList.add("active");
+
+        // Fly the camera to a calculated position over the midpoint of the thread
+        const targetPos = latLngToVector3(
+          (props.origin.coords[0] + props.destination.coords[0]) / 2,
+          (props.origin.coords[1] + props.destination.coords[1]) / 2,
+          8.5, // Closer zoom distance
+        );
+        gsap.to(camera.position, {
+          x: targetPos.x,
+          y: targetPos.y,
+          z: targetPos.z,
+          duration: 2.5,
+          ease: "expo.inOut",
+        });
+        gsap.to(camera, {
+          zoom: 1.5,
+          duration: 2.5,
+          onUpdate: () => camera.updateProjectionMatrix(),
+        });
+      }
+
+      // Return camera to home and hide the storyboard
+      function closeStoryboard() {
+        document.getElementById("storyboard").classList.remove("active");
+        isSpinning = true;
+        rotationVelocity.y = 0.0008; // Resume slow auto-spin
+        gsap.to(camera.position, {
+          x: 0,
+          y: 0,
+          z: 18,
+          duration: 2,
+          ease: "power3.inOut",
+        });
+        gsap.to(camera, {
+          zoom: 1,
+          duration: 2,
+          onUpdate: () => camera.updateProjectionMatrix(),
+        });
+      }
+
+      // Adjust 3D view when browser window is resized
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      // --- MAIN RENDER LOOP ---
+      function animate() {
+        requestAnimationFrame(animate); // Synchronize with screen refresh rate
+        if (isSpinning) {
+          if (!isDragging) {
+            // Apply rotation and inertia damping
+            globe.rotation.y += rotationVelocity.y;
+            globe.rotation.x += rotationVelocity.x;
+            rotationVelocity.x *= dampingFactor;
+            rotationVelocity.y *= dampingFactor;
+            // Maintain a base rotation if velocity drops too low
+            if (Math.abs(rotationVelocity.y) < 0.0008)
+              rotationVelocity.y = 0.0008;
+          }
+          stars.rotation.y += 0.0001; // Slower starfield rotation for depth
+        }
+        // Atmospheric 'breathing' animation
+        const time = Date.now() * 0.001;
+        atmosphere.scale.setScalar(1 + Math.sin(time) * 0.03);
+
+        renderer.render(scene, camera);
+      }
+
+      // Execute initialization on page load
+      window.onload = init;
+    </script>
+  </body>
+</html>
