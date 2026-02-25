@@ -1,6 +1,8 @@
 # Diaspora-Cultural-Map
 An interactive 3D globe mapping the cultural and historical connections between the African continent and the Diaspora across five pillars: Dance, Food, Games, Religion, and Events.
 
+[View Live Project](https://aareonjackson.github.io/Diaspora-Cultural-Map/)
+
 # Features
 
 * Interactive 3D Globe: High-fidelity sphere with country and US state outlines.
@@ -23,9 +25,9 @@ An interactive 3D globe mapping the cultural and historical connections between 
 
 * GeoJSON: Geographic boundary rendering for countries and states.
 
-# Setup
+# Local Developement Setup
 
-Since this project fetches geographic data (GeoJSON) for the globe outlines, it must be run through a local web server to avoid CORS issues.
+If you want to run the project locally or contribute to the code, follow these steps. Because the globe fetches geographic data (GeoJSON) for the globe outlines, it must be run through a local web server to avoid CORS issues.
 
 1. Clone or download the repository.
 
