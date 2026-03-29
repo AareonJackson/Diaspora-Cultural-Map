@@ -45,7 +45,7 @@ If you want to run the project locally or contribute to the code, follow these s
 
 * origin/destination: Geographic coordinates and region names.
 
-* storyboard: An array of era-based historical content.
+* storyboard: An array of era based historical content.
 
 * color: The hex code used for the thread and UI highlights.
 
